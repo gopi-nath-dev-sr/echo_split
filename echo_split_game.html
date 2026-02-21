@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0a1a"/>
+<title>Echo Split</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --blue:#4A9EFF;
+    --orange:#FF8C42;
+    --green:#50FA7B;
+    --bg:#0a0a1a;
+    --card:#12122a;
+    --text:#e8e8ff;
+    --muted:#6060a0;
+    --correct:#50FA7B;
+    --wrong:#FF5555;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);}
+  #app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:16px;}
+
+  /* SCREENS */
+  .screen{display:none;width:100%;max-width:420px;flex-direction:column;align-items:center;gap:20px;}
+  .screen.active{display:flex;}
+
+  /* HOME */
+  .logo{font-size:42px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--blue),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .tagline{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;max-width:280px;}
+  .how-it-works{background:var(--card);border-radius:16px;padding:16px;width:100%;display:flex;flex-direction:column;gap:10px;}
+  .how-row{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);}
+  .how-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+  .score-card{background:var(--card);border-radius:16px;padding:14px 20px;width:100%;display:flex;justify-content:space-between;align-items:center;}
+  .score-label{font-size:12px;color:var(--muted);}
+  .score-val{font-size:28px;font-weight:800;color:var(--blue);}
+
+  /* BUTTONS */
+  .btn{width:100%;padding:16px;border-radius:16px;border:none;font-size:18px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;letter-spacing:.5px;}
+  .btn:active{transform:scale(0.97);opacity:.9;}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),#6C63FF);color:#fff;}
+  .btn-secondary{background:var(--card);color:var(--text);border:1px solid #222240;}
+  .btn-sm{padding:10px 20px;font-size:14px;border-radius:12px;width:auto;}
+
+  /* HEADER */
+  .game-header{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center;}
+  .phase-label{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+  .round-badge{font-size:13px;font-weight:700;color:var(--muted);}
+
+  /* ARENA */
+  .arena{width:100%;max-width:420px;min-height:220px;background:var(--card);border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;position:relative;overflow:hidden;}
+  .arena-title{font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+  /* STREAMS */
+  .streams-container{display:flex;flex-direction:column;gap:12px;width:100%;}
+  .stream-row{display:flex;align-items:center;gap:8px;}
+  .stream-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .stream-label{font-size:12px;font-weight:600;width:45px;flex-shrink:0;}
+  .symbols-track{display:flex;gap:6px;flex-wrap:wrap;min-height:44px;align-items:center;}
+  .sym{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;opacity:0;transition:opacity .15s;}
+  .sym.visible{opacity:1;}
+  .sym-blue{background:rgba(74,158,255,0.18);color:var(--blue);border:1.5px solid rgba(74,158,255,0.35);}
+  .sym-orange{background:rgba(255,140,66,0.18);color:var(--orange);border:1.5px solid rgba(255,140,66,0.35);}
+  .sym-green{background:rgba(80,250,123,0.18);color:var(--green);border:1.5px solid rgba(80,250,123,0.35);}
+
+  /* TIMER BAR */
+  .timer-bar-wrap{width:100%;height:6px;background:#1a1a3a;border-radius:99px;overflow:hidden;}
+  .timer-bar{height:100%;border-radius:99px;transition:width linear;background:linear-gradient(90deg,var(--blue),var(--orange));}
+
+  /* INTERFERENCE */
+  .interference-prompt{font-size:22px;font-weight:800;text-align:center;line-height:1.3;}
+  .interference-choices{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .choice-btn{width:80px;height:80px;border-radius:20px;border:2px solid #222240;background:var(--card);font-size:32px;cursor:pointer;transition:transform .1s,background .1s;display:flex;align-items:center;justify-content:center;}
+  .choice-btn:active{transform:scale(0.93);}
+  .choice-btn.correct-flash{background:rgba(80,250,123,.25);border-color:var(--correct);}
+  .choice-btn.wrong-flash{background:rgba(255,85,85,.2);border-color:var(--wrong);}
+
+  /* RECALL */
+  .recall-section{width:100%;display:flex;flex-direction:column;gap:8px;}
+  .recall-label{font-size:12px;font-weight:700;letter-spacing:.5px;}
+  .recall-slots{display:flex;gap:6px;flex-wrap:wrap;}
+  .recall-slot{width:44px;height:44px;border-radius:10px;border:2px dashed;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;position:relative;}
+  .recall-slot.blue-slot{border-color:rgba(74,158,255,0.4);color:var(--blue);}
+  .recall-slot.orange-slot{border-color:rgba(255,140,66,0.4);color:var(--orange);}
+  .recall-slot.filled{border-style:solid;opacity:1;}
+  .recall-slot.correct-slot{background:rgba(80,250,123,.15);border-color:var(--correct)!important;}
+  .recall-slot.wrong-slot{background:rgba(255,85,85,.12);border-color:var(--wrong)!important;}
+  .symbol-picker{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:10px;background:var(--card);border-radius:14px;}
+  .pick-sym{width:44px;height:44px;border-radius:10px;border:1.5px solid #222240;background:#0e0e25;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s,background .1s;}
+  .pick-sym:active{transform:scale(0.9);}
+  .pick-sym.selected{background:rgba(74,158,255,0.25);border-color:var(--blue);}
+  .pick-instruction{font-size:12px;color:var(--muted);text-align:center;}
+
+  /* RESULTS */
+  .result-big{font-size:64px;font-weight:900;text-align:center;}
+  .result-grade{font-size:20px;font-weight:700;text-align:center;}
+  .result-breakdown{width:100%;background:var(--card);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;}
+  .result-row-label{color:var(--muted);}
+  .result-row-val{font-weight:700;}
+  .result-bar-wrap{width:100%;height:8px;background:#1a1a3a;border-radius:99px;overflow:hidden;}
+  .result-bar{height:100%;border-radius:99px;}
+
+  /* MISC */
+  .countdown{font-size:72px;font-weight:900;color:var(--blue);animation:pulse .5s infinite alternate;}
+  @keyframes pulse{from{transform:scale(1);}to{transform:scale(1.08);}}
+  .breath-text{font-size:18px;font-weight:600;color:var(--muted);text-align:center;animation:fadeinout 4s ease-in-out;}
+  @keyframes fadeinout{0%{opacity:0}20%{opacity:1}80%{opacity:1}100%{opacity:0}}
+  .difficulty-row{display:flex;gap:8px;justify-content:center;}
+  .diff-btn{padding:8px 16px;border-radius:10px;border:1.5px solid #222240;background:var(--card);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;}
+  .diff-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(74,158,255,0.12);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME SCREEN -->
+  <div class="screen active" id="screen-home">
+    <div class="logo">ECHO SPLIT</div>
+    <div class="tagline">Train your brain with dual-stream memory separation. Backed by neuroscience. 15 min a day.</div>
+    <div class="score-card">
+      <div><div class="score-label">Best Score</div><div class="score-val" id="home-best">—</div></div>
+      <div><div class="score-label">Sessions</div><div class="score-val" id="home-sessions">0</div></div>
+      <div><div class="score-label">Streak</div><div class="score-val" id="home-streak">0🔥</div></div>
+    </div>
+    <div class="how-it-works">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">HOW IT WORKS</div>
+      <div class="how-row"><div class="how-num" style="background:rgba(74,158,255,.2);color:var(--blue);">1</div><span><b style="color:var(--blue)">Watch</b> two symbol streams — Blue &amp; Orange — appear interleaved</span></div>
+      <div class="how-row"><div class="how-num" style="background:rgba(255,140,66,.2);color:var(--orange);">2</div><span><b style="color:var(--orange)">Block</b> a quick distraction task to challenge your memory</span></div>
+      <div class="how-row"><div class="how-num" style="background:rgba(80,250,123,.2);color:var(--correct);">3</div><span><b style="color:var(--correct)">Recall</b> each stream separately in the correct order</span></div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px;font-weight:600;letter-spacing:.5px;">DIFFICULTY</div>
+      <div class="difficulty-row">
+        <button class="diff-btn active" id="diff-easy" onclick="setDiff('easy')">Easy</button>
+        <button class="diff-btn" id="diff-medium" onclick="setDiff('medium')">Medium</button>
+        <button class="diff-btn" id="diff-hard" onclick="setDiff('hard')">Hard</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()">▶  START GAME</button>
+    <button class="btn btn-secondary btn-sm" onclick="showScreen('screen-stats')">📊 Stats</button>
+  </div>
+
+  <!-- BREATH SCREEN -->
+  <div class="screen" id="screen-breath">
+    <div style="font-size:80px;">🧘</div>
+    <div class="breath-text" id="breath-text">Take a breath...</div>
+    <div class="countdown" id="breath-count">3</div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen" id="screen-game">
+    <div class="game-header">
+      <span class="phase-label" id="phase-label">OBSERVE</span>
+      <span class="round-badge" id="round-badge">Round 1/5</span>
+    </div>
+    <div class="timer-bar-wrap" style="width:100%;max-width:420px;"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+    <div class="arena" id="arena">
+      <div class="arena-title" id="arena-title">Watch the streams</div>
+      <div class="streams-container" id="streams-container">
+        <div class="stream-row">
+          <div class="stream-dot" style="background:var(--blue)"></div>
+          <div class="stream-label" style="color:var(--blue)">BLUE</div>
+          <div class="symbols-track" id="track-blue"></div>
+        </div>
+        <div class="stream-row">
+          <div class="stream-dot" style="background:var(--orange)"></div>
+          <div class="stream-label" style="color:var(--orange)">ORANGE</div>
+          <div class="symbols-track" id="track-orange"></div>
+        </div>
+      </div>
+
+      <!-- Interference -->
+      <div id="interference-area" style="display:none;width:100%;flex-direction:column;align-items:center;gap:16px;">
+        <div class="interference-prompt" id="interf-prompt"></div>
+        <div class="interference-choices" id="interf-choices"></div>
+        <div class="timer-bar-wrap" style="width:80%"><div class="timer-bar" id="interf-timer" style="width:100%;background:linear-gradient(90deg,var(--orange),#ff4444)"></div></div>
+      </div>
+    </div>
+
+    <!-- Recall area -->
+    <div id="recall-area" style="display:none;width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;">
+      <div class="recall-section">
+        <div class="recall-label" style="color:var(--blue)">🔵 BLUE STREAM — tap symbols in order</div>
+        <div class="recall-slots" id="slots-blue"></div>
+      </div>
+      <div class="recall-section">
+        <div class="recall-label" style="color:var(--orange)">🟠 ORANGE STREAM — tap symbols in order</div>
+        <div class="recall-slots" id="slots-orange"></div>
+      </div>
+      <div class="pick-instruction" id="pick-instruction">Tap a symbol below, then tap the slot to fill it</div>
+      <div class="symbol-picker" id="symbol-picker"></div>
+      <button class="btn btn-primary" onclick="submitRecall()" id="submit-btn" style="opacity:.4;pointer-events:none;">CHECK ANSWERS ✓</button>
+    </div>
+  </div>
+
+  <!-- ROUND RESULT -->
+  <div class="screen" id="screen-round-result">
+    <div class="result-big" id="rr-emoji">⚡</div>
+    <div class="result-grade" id="rr-grade"></div>
+    <div class="result-breakdown">
+      <div class="result-row"><span class="result-row-label">Blue Stream</span><span class="result-row-val" id="rr-blue"></span></div>
+      <div class="result-bar-wrap"><div class="result-bar" id="rr-blue-bar" style="background:var(--blue)"></div></div>
+      <div class="result-row"><span class="result-row-label">Orange Stream</span><span class="result-row-val" id="rr-orange"></span></div>
+      <div class="result-bar-wrap"><div class="result-bar" id="rr-orange-bar" style="background:var(--orange)"></div></div>
+      <div class="result-row"><span class="result-row-label">Round Score</span><span class="result-row-val" id="rr-score" style="color:var(--blue)"></span></div>
+    </div>
+    <button class="btn btn-primary" id="next-btn" onclick="nextRound()">NEXT ROUND →</button>
+  </div>
+
+  <!-- FINAL RESULTS -->
+  <div class="screen" id="screen-final">
+    <div class="result-big" id="final-emoji">🧠</div>
+    <div style="font-size:16px;font-weight:700;color:var(--muted)">SESSION COMPLETE</div>
+    <div class="result-big" id="final-score" style="font-size:80px;background:linear-gradient(135deg,var(--blue),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;"></div>
+    <div class="result-grade" id="final-grade"></div>
+    <div class="result-breakdown">
+      <div class="result-row"><span class="result-row-label">Rounds Played</span><span class="result-row-val" id="f-rounds"></span></div>
+      <div class="result-row"><span class="result-row-label">Average Accuracy</span><span class="result-row-val" id="f-accuracy"></span></div>
+      <div class="result-row"><span class="result-row-label">Best Round</span><span class="result-row-val" id="f-best-round"></span></div>
+      <div class="result-row"><span class="result-row-label">All Time Best</span><span class="result-row-val" id="f-alltime"></span></div>
+    </div>
+    <div id="final-insight" style="font-size:13px;color:var(--muted);text-align:center;line-height:1.5;padding:12px;background:var(--card);border-radius:12px;"></div>
+    <button class="btn btn-primary" onclick="startGame()">PLAY AGAIN 🔄</button>
+    <button class="btn btn-secondary" onclick="showScreen('screen-home')">HOME</button>
+  </div>
+
+  <!-- STATS SCREEN -->
+  <div class="screen" id="screen-stats">
+    <div style="font-size:22px;font-weight:800;">📊 Your Progress</div>
+    <div class="result-breakdown" id="stats-content" style="width:100%;max-width:420px;"></div>
+    <button class="btn btn-secondary" onclick="showScreen('screen-home')">← BACK</button>
+  </div>
+
+</div>
+
+<script>
+// ==================== SYMBOLS & CONFIG ====================
+const SYMBOLS = ['◆','●','■','▲','★','⬟','⬡','✦','⬢','✿'];
+const SYM_EMOJI = ['🔷','🔶','🟩','🔺','⭐','💠','🔮','✨','🎯','🌀'];
+
+const DIFF_CONFIG = {
+  easy:   { len: 3, speed: 750, interf: 'simple' },
+  medium: { len: 4, speed: 550, interf: 'medium' },
+  hard:   { len: 5, speed: 380, interf: 'hard'   }
+};
+const ROUNDS_PER_SESSION = 5;
+
+// ==================== STATE ====================
+let diff = 'easy';
+let cfg = DIFF_CONFIG.easy;
+let currentRound = 0;
+let sessionScores = [];
+let blueStream = [], orangeStream = [];
+let blueRecall = [], orangeRecall = [];
+let selectedPickSymbol = null;
+let selectedPickSlot = null;
+let timerInterval = null;
+let pendingSlotColor = null;
+
+// Storage helpers
+function save(key, val){ try{ localStorage.setItem('es_'+key, JSON.stringify(val)); }catch(e){} }
+function load(key, def){ try{ const v=localStorage.getItem('es_'+key); return v!=null?JSON.parse(v):def; }catch(e){return def;} }
+
+// ==================== SCREENS ====================
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); s.style.display='none'; });
+  const el = document.getElementById(id);
+  el.style.display='flex'; el.classList.add('active');
+}
+
+function setDiff(d){
+  diff = d; cfg = DIFF_CONFIG[d];
+  ['easy','medium','hard'].forEach(x=>document.getElementById('diff-'+x).classList.remove('active'));
+  document.getElementById('diff-'+d).classList.add('active');
+}
+
+function updateHome(){
+  const best = load('best',0);
+  const sessions = load('sessions',0);
+  const streak = load('streak',0);
+  document.getElementById('home-best').textContent = best>0?best:'—';
+  document.getElementById('home-sessions').textContent = sessions;
+  document.getElementById('home-streak').textContent = streak+'🔥';
+}
+
+// ==================== GAME START ====================
+function startGame(){
+  currentRound = 0;
+  sessionScores = [];
+  showBreath();
+}
+
+function showBreath(){
+  showScreen('screen-breath');
+  const texts = ['Take a breath...', 'Inhale... Exhale...', 'Focus your mind...', 'Ready?'];
+  let t = 0;
+  let countdown = 3;
+  const bi = document.getElementById('breath-count');
+  const bt = document.getElementById('breath-text');
+  bt.textContent = texts[0];
+  bi.textContent = countdown;
+  const iv = setInterval(()=>{
+    countdown--;
+    if(countdown <= 0){ clearInterval(iv); startRound(); }
+    else { bi.textContent = countdown; bt.textContent = texts[Math.min(t++, texts.length-1)]; }
+  }, 1000);
+}
+
+// ==================== ROUND ====================
+function startRound(){
+  currentRound++;
+  document.getElementById('round-badge').textContent = `Round ${currentRound}/${ROUNDS_PER_SESSION}`;
+
+  // Generate streams
+  blueStream   = generateStream(cfg.len);
+  orangeStream = generateStream(cfg.len);
+  blueRecall   = new Array(cfg.len).fill(null);
+  orangeRecall = new Array(cfg.len).fill(null);
+  selectedPickSymbol = null;
+  selectedPickSlot = null;
+  pendingSlotColor = null;
+
+  showScreen('screen-game');
+  showObservePhase();
+}
+
+function generateStream(len){
+  let s=[];
+  for(let i=0;i<len;i++){
+    let idx;
+    do { idx=Math.floor(Math.random()*SYMBOLS.length); } while(s.includes(idx));
+    s.push(idx);
+  }
+  return s;
+}
+
+// ==================== OBSERVE PHASE ====================
+function showObservePhase(){
+  document.getElementById('phase-label').textContent = 'OBSERVE';
+  document.getElementById('arena-title').textContent = 'Watch the streams';
+  document.getElementById('arena').style.display='flex';
+  document.getElementById('streams-container').style.display='flex';
+  document.getElementById('interference-area').style.display='none';
+  document.getElementById('recall-area').style.display='none';
+
+  // Build symbol slots
+  const tb = document.getElementById('track-blue');
+  const to = document.getElementById('track-orange');
+  tb.innerHTML=''; to.innerHTML='';
+  blueStream.forEach((_,i)=>{ tb.innerHTML+=`<div class="sym sym-blue" id="sym-b${i}">${SYMBOLS[blueStream[i]]}</div>`; });
+  orangeStream.forEach((_,i)=>{ to.innerHTML+=`<div class="sym sym-orange" id="sym-o${i}">${SYMBOLS[orangeStream[i]]}</div>`; });
+
+  // Interleave animation
+  const totalSyms = cfg.len * 2;
+  const totalTime = cfg.len * cfg.speed * 1.4;
+  startTimerBar('timer-bar', totalTime);
+
+  // Create interleaved order: alternate B0, O0, B1, O1...
+  let events = [];
+  for(let i=0;i<cfg.len;i++){
+    events.push({type:'b',idx:i,t: i*cfg.speed*1.4});
+    events.push({type:'o',idx:i,t: i*cfg.speed*1.4 + cfg.speed*0.7});
+  }
+
+  events.forEach(ev=>{
+    setTimeout(()=>{
+      const el = document.getElementById(ev.type==='b'?`sym-b${ev.idx}`:`sym-o${ev.idx}`);
+      if(el){ el.classList.add('visible'); }
+    }, ev.t);
+  });
+
+  setTimeout(()=>{ showInterferencePhase(); }, totalTime + 300);
+}
+
+// ==================== INTERFERENCE PHASE ====================
+const INTERF_EASY = [
+  {q:'Tap the STAR', choices:['⭐','🔶','🔷','🟩'], ans:0},
+  {q:'Tap the BLUE one', choices:['🔷','🔶','🟩','⭐'], ans:0},
+  {q:'Tap the CIRCLE', choices:['●','■','▲','◆'], ans:0},
+];
+const INTERF_MED = [
+  {q:'Tap: 3 + 4 = ?', choices:['6','7','8','5'], ans:1},
+  {q:'Tap: 9 − 5 = ?', choices:['3','5','4','6'], ans:2},
+  {q:'Tap the ODD number', choices:['4','7','6','8'], ans:1},
+];
+const INTERF_HARD = [
+  {q:'Tap: 6 × 7 = ?', choices:['36','42','48','40'], ans:1},
+  {q:'Tap: 15 − 8 = ?', choices:['6','8','7','9'], ans:2},
+  {q:'Tap: 4² = ?', choices:['12','8','16','14'], ans:2},
+];
+
+function showInterferencePhase(){
+  document.getElementById('phase-label').textContent = 'INTERFERENCE';
+  document.getElementById('streams-container').style.display='none';
+  document.getElementById('interference-area').style.display='flex';
+
+  let pool = cfg.interf==='simple'?INTERF_EASY: cfg.interf==='medium'?INTERF_MED:INTERF_HARD;
+  const q = pool[Math.floor(Math.random()*pool.length)];
+  document.getElementById('interf-prompt').textContent = q.q;
+  const cb = document.getElementById('interf-choices');
+  cb.innerHTML='';
+  q.choices.forEach((c,i)=>{
+    const b = document.createElement('button');
+    b.className='choice-btn'; b.textContent=c;
+    b.onclick=()=>{
+      if(b.dataset.done) return;
+      b.dataset.done='1';
+      if(i===q.ans){ b.classList.add('correct-flash'); vibrate([30]); }
+      else{ b.classList.add('wrong-flash'); vibrate([50,30,50]); }
+      setTimeout(()=>showRecallPhase(), 600);
+    };
+    cb.appendChild(b);
+  });
+
+  startTimerBar('interf-timer', 4000);
+  setTimeout(()=>{ if(!cb.querySelector('[data-done]')) showRecallPhase(); }, 4200);
+}
+
+// ==================== RECALL PHASE ====================
+function showRecallPhase(){
+  document.getElementById('phase-label').textContent = 'RECALL';
+  document.getElementById('interference-area').style.display='none';
+  document.getElementById('recall-area').style.display='flex';
+  document.getElementById('streams-container').style.display='none';
+
+  buildRecallSlots('slots-blue','blue-slot','blue');
+  buildRecallSlots('slots-orange','orange-slot','orange');
+  buildPicker();
+  document.getElementById('pick-instruction').textContent='Tap a symbol below, then tap a slot to place it';
+  checkSubmitReady();
+}
+
+function buildRecallSlots(containerId, slotClass, color){
+  const c = document.getElementById(containerId);
+  c.innerHTML='';
+  for(let i=0;i<cfg.len;i++){
+    const s = document.createElement('div');
+    s.className=`recall-slot ${slotClass}`;
+    s.dataset.idx=i; s.dataset.color=color;
+    s.textContent='?';
+    s.onclick=()=>slotTapped(s);
+    c.appendChild(s);
+  }
+}
+
+function buildPicker(){
+  const p = document.getElementById('symbol-picker');
+  p.innerHTML='';
+  SYMBOLS.forEach((sym,idx)=>{
+    const b = document.createElement('button');
+    b.className='pick-sym'; b.textContent=sym; b.dataset.idx=idx;
+    b.onclick=()=>pickerTapped(b,idx);
+    p.appendChild(b);
+  });
+}
+
+function pickerTapped(btn, symIdx){
+  document.querySelectorAll('.pick-sym').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedPickSymbol = symIdx;
+  document.getElementById('pick-instruction').textContent='Now tap a slot to place it →';
+
+  // If a slot was pre-selected
+  if(pendingSlotColor !== null && pendingSlotIdx !== null){
+    fillSlot(pendingSlotColor, pendingSlotIdx, symIdx);
+    pendingSlotColor=null; pendingSlotIdx=null;
+    document.querySelectorAll('.pick-sym').forEach(b=>b.classList.remove('selected'));
+    selectedPickSymbol=null;
+    document.getElementById('pick-instruction').textContent='Tap a symbol, then tap a slot';
+  }
+}
+
+let pendingSlotIdx = null;
+function slotTapped(slot){
+  const color = slot.dataset.color;
+  const idx = parseInt(slot.dataset.idx);
+  if(selectedPickSymbol !== null){
+    fillSlot(color, idx, selectedPickSymbol);
+    document.querySelectorAll('.pick-sym').forEach(b=>b.classList.remove('selected'));
+    selectedPickSymbol = null;
+    document.getElementById('pick-instruction').textContent='Tap a symbol, then tap a slot';
+  } else {
+    // Select the slot first
+    document.querySelectorAll('.recall-slot').forEach(s=>s.style.boxShadow='');
+    slot.style.boxShadow='0 0 0 2px white';
+    pendingSlotColor = color; pendingSlotIdx = idx;
+    document.getElementById('pick-instruction').textContent='Now tap a symbol to place it ↓';
+  }
+}
+
+function fillSlot(color, idx, symIdx){
+  if(color==='blue') blueRecall[idx]=symIdx;
+  else orangeRecall[idx]=symIdx;
+
+  const containerId = color==='blue'?'slots-blue':'slots-orange';
+  const slots = document.getElementById(containerId).children;
+  if(slots[idx]){
+    slots[idx].textContent = SYMBOLS[symIdx];
+    slots[idx].classList.add('filled');
+    slots[idx].style.boxShadow='';
+  }
+  vibrate([15]);
+  checkSubmitReady();
+}
+
+function checkSubmitReady(){
+  const ready = blueRecall.every(v=>v!==null) && orangeRecall.every(v=>v!==null);
+  const btn = document.getElementById('submit-btn');
+  btn.style.opacity = ready?'1':'0.4';
+  btn.style.pointerEvents = ready?'auto':'none';
+}
+
+// ==================== SCORING ====================
+function submitRecall(){
+  // Score blue
+  let blueCorrect=0, orangeCorrect=0;
+  blueStream.forEach((sym,i)=>{ if(blueRecall[i]===sym) blueCorrect++; });
+  orangeStream.forEach((sym,i)=>{ if(orangeRecall[i]===sym) orangeCorrect++; });
+
+  // Highlight slots
+  highlightSlots('slots-blue', blueStream, blueRecall);
+  highlightSlots('slots-orange', orangeStream, orangeRecall);
+
+  const totalCorrect = blueCorrect + orangeCorrect;
+  const totalPossible = cfg.len * 2;
+  const pct = Math.round((totalCorrect/totalPossible)*100);
+
+  sessionScores.push({blue:blueCorrect,orange:orangeCorrect,total:pct,maxLen:cfg.len});
+  setTimeout(()=>showRoundResult(blueCorrect,orangeCorrect,pct), 1200);
+}
+
+function highlightSlots(containerId, stream, recall){
+  const slots = document.getElementById(containerId).children;
+  stream.forEach((sym,i)=>{
+    if(recall[i]===sym) slots[i]?.classList.add('correct-slot');
+    else slots[i]?.classList.add('wrong-slot');
+  });
+}
+
+function showRoundResult(blueC, orangeC, pct){
+  showScreen('screen-round-result');
+  const emoji = pct>=80?'🔥':pct>=60?'⚡':pct>=40?'🧠':'💡';
+  const grade = pct>=80?'Excellent!':pct>=60?'Good job':pct>=40?'Keep going':'Keep practicing';
+  document.getElementById('rr-emoji').textContent=emoji;
+  document.getElementById('rr-grade').textContent=`${grade} — ${pct}% accurate`;
+  document.getElementById('rr-blue').textContent=`${blueC}/${cfg.len} correct`;
+  document.getElementById('rr-orange').textContent=`${orangeC}/${cfg.len} correct`;
+  document.getElementById('rr-score').textContent=`${pct} pts`;
+  document.getElementById('rr-blue-bar').style.width=(blueC/cfg.len*100)+'%';
+  document.getElementById('rr-orange-bar').style.width=(orangeC/cfg.len*100)+'%';
+
+  const nextBtn = document.getElementById('next-btn');
+  if(currentRound >= ROUNDS_PER_SESSION){
+    nextBtn.textContent='SEE FINAL RESULTS 🏁';
+    nextBtn.onclick = showFinalResults;
+  } else {
+    nextBtn.textContent=`NEXT ROUND → (${currentRound+1}/${ROUNDS_PER_SESSION})`;
+    nextBtn.onclick = nextRound;
+  }
+}
+
+function nextRound(){
+  if(currentRound < ROUNDS_PER_SESSION) startRound();
+  else showFinalResults();
+}
+
+// ==================== FINAL RESULTS ====================
+function showFinalResults(){
+  showScreen('screen-final');
+  const avgPct = Math.round(sessionScores.reduce((a,b)=>a+b.total,0)/sessionScores.length);
+  const best = Math.max(...sessionScores.map(s=>s.total));
+
+  const emoji = avgPct>=80?'🧠':avgPct>=60?'⚡':avgPct>=40?'💡':'🌱';
+  const grade = avgPct>=80?'Outstanding performance!':avgPct>=60?'Strong session!':avgPct>=40?'Solid work — keep it up!':'Every rep builds your brain!';
+
+  document.getElementById('final-emoji').textContent=emoji;
+  document.getElementById('final-score').textContent=avgPct+'%';
+  document.getElementById('final-grade').textContent=grade;
+  document.getElementById('f-rounds').textContent=sessionScores.length+' / '+ROUNDS_PER_SESSION;
+  document.getElementById('f-accuracy').textContent=avgPct+'%';
+  document.getElementById('f-best-round').textContent=best+'%';
+
+  // Save stats
+  const allTimeBest = Math.max(load('best',0), avgPct);
+  save('best', allTimeBest);
+  const sessions = load('sessions',0)+1;
+  save('sessions', sessions);
+  const lastDay = load('lastday','');
+  const today = new Date().toDateString();
+  let streak = load('streak',0);
+  if(lastDay !== today){ streak++; save('streak',streak); save('lastday',today); }
+
+  document.getElementById('f-alltime').textContent=allTimeBest+'%';
+
+  const insights = [
+    'Your working memory is like a muscle — daily training creates lasting neural connections.',
+    'Dual-stream training activates both your prefrontal cortex and hippocampus simultaneously.',
+    'Research shows 15 min/day, 5 days/week produces measurable gray matter growth in 4 weeks.',
+    'The interference phase forces deeper memory encoding — that\'s where real gains happen.',
+    'Selective attention and working memory are linked: training one automatically improves the other.',
+  ];
+  document.getElementById('final-insight').textContent='💡 ' + insights[Math.floor(Math.random()*insights.length)];
+
+  updateHome();
+}
+
+// ==================== STATS SCREEN ====================
+function showStatsScreen(){
+  const best = load('best',0);
+  const sessions = load('sessions',0);
+  const streak = load('streak',0);
+  const sc = document.getElementById('stats-content');
+  sc.innerHTML=`
+    <div class="result-row"><span class="result-row-label">All Time Best</span><span class="result-row-val" style="color:var(--blue)">${best>0?best+'%':'No sessions yet'}</span></div>
+    <div class="result-row"><span class="result-row-label">Total Sessions</span><span class="result-row-val">${sessions}</span></div>
+    <div class="result-row"><span class="result-row-label">Current Streak</span><span class="result-row-val">${streak} day${streak!==1?'s':''} 🔥</span></div>
+    <div class="result-row"><span class="result-row-label">Current Difficulty</span><span class="result-row-val" style="text-transform:capitalize">${diff}</span></div>
+    <div style="height:1px;background:#222240;margin:8px 0"></div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5">Train 5 days a week for 2–4 weeks to see measurable improvement in real-world concentration and working memory. Each session is unique — no two rounds are the same.</div>
+    <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;color:var(--wrong)" onclick="if(confirm('Reset all progress?')){localStorage.clear();updateHome();showScreen('screen-home');}">Reset Progress</button>
+  `;
+  showScreen('screen-stats');
+}
+
+// Override stats button
+document.querySelector('[onclick="showScreen(\'screen-stats\')"]').setAttribute('onclick',"showStatsScreen()");
+
+// ==================== UTILITIES ====================
+function startTimerBar(id, duration){
+  const bar = document.getElementById(id);
+  if(!bar) return;
+  bar.style.transition='none'; bar.style.width='100%';
+  setTimeout(()=>{ bar.style.transition=`width ${duration}ms linear`; bar.style.width='0%'; }, 30);
+}
+
+function vibrate(pattern){
+  try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){}
+}
+
+// ==================== INIT ====================
+updateHome();
+</script>
+</body>
+</html>
