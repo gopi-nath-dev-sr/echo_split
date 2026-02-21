@@ -63,7 +63,7 @@ export default function GameScreen() {
     setActiveRecallStream('blue');
     setResult(null);
     setReplayIndex(-1);
-    setBreathCount(3);
+    setBreathCount(1);
     setPhase('breathing');
   }, [difficulty]);
 
@@ -76,12 +76,12 @@ export default function GameScreen() {
       if (breathCount > 0) {
         timerRef.current = setTimeout(() => {
           setBreathCount((c) => c - 1);
-        }, 1200);
+        }, 800);
       } else {
         timerRef.current = setTimeout(() => {
           setPhase('observe');
           setCurrentSymbolIndex(0);
-        }, 500);
+        }, 400);
       }
     }
     return () => {
